@@ -1,7 +1,7 @@
 {
-    "registered_model_name": "freshbasket-delivery-time-min-predictor",
+    "registered_model_name": "genomeflow-sequencing-hours-predictor",
     "version": 1,
-    "run_id": "35652e12ff0e4aaeae10dd138bb5918c",
-    "source_metric": "rmse",
-    "source_metric_value": 14.500067291305744
+    "run_id": "776381dd21da4f4e8a9cb1e769921957",
+    "source_metric": "mae",
+    "source_metric_value": 10.981527979535574
 }

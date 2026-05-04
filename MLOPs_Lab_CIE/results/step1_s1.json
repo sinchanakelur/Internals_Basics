@@ -1,18 +1,18 @@
 {
-    "experiment_name": "freshbasket-delivery-time-min",
+    "experiment_name": "genomeflow-sequencing-hours",
     "models": [
         {
-            "name": "Lasso",
-            "mae": 12.5325,
-            "rmse": 14.5001
+            "name": "Ridge",
+            "mae": 10.981527979535574,
+            "rmse": 11.456738570198903
         },
         {
             "name": "RandomForest",
-            "mae": 13.1452,
-            "rmse": 14.7452
+            "mae": 11.884300000000005,
+            "rmse": 13.72610429954545
         }
     ],
-    "best_model": "Lasso",
-    "best_metric_name": "rmse",
-    "best_metric_value": 14.5001
+    "best_model": "Ridge",
+    "best_metric_name": "mae",
+    "best_metric_value": 10.981527979535574
 }

@@ -1,51 +1,37 @@
 import mlflow
-import mlflow.sklearn
+from mlflow.tracking import MlflowClient
 import json
-import os
 
-# -----------------------------
-# Model name (as per question)
-# -----------------------------
-MODEL_NAME = "freshbasket-delivery-time-min-predictor"
+client = MlflowClient()
 
-# -----------------------------
-# Get latest run
-# -----------------------------
-client = mlflow.tracking.MlflowClient()
+experiment = client.get_experiment_by_name("genomeflow-sequencing-hours")
+runs = client.search_runs(experiment.experiment_id)
 
-experiment = client.get_experiment_by_name("freshbasket-delivery-time-min")
+# Filter runs that actually have mae
+valid_runs = [r for r in runs if "mae" in r.data.metrics]
 
-runs = client.search_runs(
-    experiment_ids=[experiment.experiment_id],
-    order_by=["metrics.rmse ASC"],
-    max_results=1
+if len(valid_runs) == 0:
+    raise Exception("No runs with MAE found. Check training step.")
+
+# Get best run (lowest MAE)
+best_run = sorted(valid_runs, key=lambda x: x.data.metrics["mae"])[0]
+
+model_uri = f"runs:/{best_run.info.run_id}/Ridge"
+
+registered_model = mlflow.register_model(
+    model_uri,
+    "genomeflow-sequencing-hours-predictor"
 )
 
-best_run = runs[0]
-
-run_id = best_run.info.run_id
-
-# -----------------------------
-# Register model
-# -----------------------------
-model_uri = f"runs:/{run_id}/model"
-
-result = mlflow.register_model(model_uri, MODEL_NAME)
-
-# -----------------------------
-# Save JSON output
-# -----------------------------
 output = {
-    "registered_model_name": MODEL_NAME,
-    "version": result.version,
-    "run_id": run_id,
-    "source_metric": "rmse",
-    "source_metric_value": best_run.data.metrics["rmse"]
+    "registered_model_name": "genomeflow-sequencing-hours-predictor",
+    "version": registered_model.version,
+    "run_id": best_run.info.run_id,
+    "source_metric": "mae",
+    "source_metric_value": best_run.data.metrics["mae"]
 }
-
-os.makedirs("results", exist_ok=True)
 
 with open("results/step3_s6.json", "w") as f:
     json.dump(output, f, indent=4)
 
-print("✅ Task 3 completed. Model registered.")
+print("Task 3 DONE")

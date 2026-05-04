@@ -1,88 +1,78 @@
 import pandas as pd
+import numpy as np
 import mlflow
 import mlflow.sklearn
-
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import Lasso
+from sklearn.linear_model import Ridge
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import json
 import os
 
-# -----------------------------
 # Load data
-# -----------------------------
 df = pd.read_csv("data/training_data.csv")
 
-X = df.drop("delivery_time_min", axis=1)
-y = df["delivery_time_min"]
+X = df.drop("sequencing_hours", axis=1)
+y = df["sequencing_hours"]
 
-# -----------------------------
-# Train-test split
-# -----------------------------
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# -----------------------------
-# MLflow setup
-# -----------------------------
-mlflow.set_experiment("freshbasket-delivery-time-min")
+mlflow.set_experiment("genomeflow-sequencing-hours")
 
 results = []
 
 models = {
-    "Lasso": Lasso(),
+    "Ridge": Ridge(),
     "RandomForest": RandomForestRegressor(random_state=42)
 }
 
-# -----------------------------
-# Train models
-# -----------------------------
+best_model_name = None
+best_mae = float("inf")
+best_model = None
+
 for name, model in models.items():
     with mlflow.start_run(run_name=name):
 
         model.fit(X_train, y_train)
-        mlflow.sklearn.log_model(model, "model")
         preds = model.predict(X_test)
 
-        # Metrics
         mae = mean_absolute_error(y_test, preds)
+        rmse = np.sqrt(mean_squared_error(y_test, preds))
 
-        # ✅ FIXED RMSE (works for all sklearn versions)
-        rmse = mean_squared_error(y_test, preds) ** 0.5
+        mlflow.log_param("model_name", name)
+        mlflow.log_metrics({"mae": mae, "rmse": rmse})
+        mlflow.set_tag("project_phase", "model_selection")
 
-        # Log to MLflow
-        mlflow.log_param("model", name)
-        mlflow.log_metric("mae", mae)
-        mlflow.log_metric("rmse", rmse)
+        mlflow.sklearn.log_model(model, name)
 
-        # Save results
         results.append({
             "name": name,
-            "mae": round(mae, 4),
-            "rmse": round(rmse, 4)
+            "mae": mae,
+            "rmse": rmse
         })
 
-# -----------------------------
-# Select best model (lowest RMSE)
-# -----------------------------
-best_model = min(results, key=lambda x: x["rmse"])
+        if mae < best_mae:
+            best_mae = mae
+            best_model_name = name
+            best_model = model
 
-final_output = {
-    "experiment_name": "freshbasket-delivery-time-min",
+# Save best model
+os.makedirs("models", exist_ok=True)
+import joblib
+joblib.dump(best_model, "models/best_model.pkl")
+
+# Save JSON
+output = {
+    "experiment_name": "genomeflow-sequencing-hours",
     "models": results,
-    "best_model": best_model["name"],
-    "best_metric_name": "rmse",
-    "best_metric_value": best_model["rmse"]
+    "best_model": best_model_name,
+    "best_metric_name": "mae",
+    "best_metric_value": best_mae
 }
 
-# -----------------------------
-# Save JSON result
-# -----------------------------
-os.makedirs("results", exist_ok=True)
-
 with open("results/step1_s1.json", "w") as f:
-    json.dump(final_output, f, indent=4)
+    json.dump(output, f, indent=4)
 
-print("✅ Task 1 completed. Results saved to results/step1_s1.json")
+print("Task 1 completed!")
